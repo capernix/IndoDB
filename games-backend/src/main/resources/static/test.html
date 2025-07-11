@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IndiaDB Games API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .response { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>IndiaDB Games API Test</h1>
+    
+    <button onclick="testAPI('/api/games')">Test Games API</button>
+    <button onclick="testAPI('/api/prices/deals/good')">Test Deals API</button>
+    <button onclick="testAPI('/actuator/health')">Test Health</button>
+    
+    <div id="result"></div>
+
+    <script>
+    async function testAPI(endpoint) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="response">Testing ${endpoint}...</div>`;
+        
+        try {
+            const response = await fetch(`http://localhost:8081${endpoint}`);
+            const data = await response.json();
+            
+            if (response.ok) {
+                resultDiv.innerHTML = `
+                    <div class="response success">
+                        <h3>SUCCESS: ${endpoint}</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Response:</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="response error">
+                        <h3>ERROR: ${endpoint}</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Response:</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="response error">
+                    <h3>NETWORK ERROR: ${endpoint}</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+    </script>
+</body>
+</html>

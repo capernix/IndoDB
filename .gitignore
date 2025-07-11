@@ -1,0 +1,50 @@
+# Environment variables
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+
+# Docker volumes
+postgres_data/
+redis_data/
+kafka_data/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Spring Boot
+games-backend/target/
+games-backend/.mvn/wrapper/maven-wrapper.jar
+
+# Node.js (for future frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+out/
+build/
+
+# Python (for data processing)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
