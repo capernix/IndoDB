@@ -62,3 +62,16 @@ management:
   endpoint:
     health:
       show-details: always
+
+# External API Configuration
+steam:
+  api:
+    key: ${STEAM_API_KEY:your_steam_api_key_here}  # Set via environment variable
+    base-url: https://store.steampowered.com/api
+    timeout: 10000  # 10 second timeout
+
+epic:
+  api:
+    # Epic Games API configuration (for future use)
+    base-url: https://store-site-backend-static.ak.epicgames.com
+    timeout: 10000
