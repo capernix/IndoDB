@@ -34,11 +34,11 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
-      group-id: indiadb-games
+      group-id: indodb-price-alerts
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.indodb.games_backend.model"
+        spring.json.trusted.packages: "com.indodb.games_backend.events"
 
 # Server Configuration
 server:
