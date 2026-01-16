@@ -2,6 +2,7 @@ package com.indodb.games_backend.controller;
 
 import com.indodb.games_backend.model.Game;
 import com.indodb.games_backend.service.GameService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,6 +19,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*") // For frontend development
+@Tag(name = "Game Catalog", description = "📚 Game database management with search, filtering, and discovery features")
 public class GameController {
     
     private final GameService gameService;

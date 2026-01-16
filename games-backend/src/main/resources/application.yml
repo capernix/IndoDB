@@ -63,6 +63,23 @@ management:
     health:
       show-details: always
 
+# OpenAPI/Swagger Documentation
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+    filter: true
+    disable-swagger-default-url: true
+  show-actuator: false
+  use-fqn: false
+  # Hide complex internal schemas
+  packages-to-scan: com.indodb.games_backend.controller
+  paths-to-match: /api/**
+
 # External API Configuration
 steam:
   api:
@@ -75,3 +92,30 @@ epic:
     # Epic Games API configuration (for future use)
     base-url: https://store-site-backend-static.ak.epicgames.com
     timeout: 10000
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}  # Base64 encoded 256-bit key
+  expiration: 86400000  # 24 hours in milliseconds
+
+# Email Configuration (for price drop notifications)
+spring:
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+    default-encoding: UTF-8
+
+# Scheduling Configuration
+price:
+  fetch:
+    interval: 3600000  # 1 hour in milliseconds
+    batch-size: 50  # Number of games to update per batch (respects rate limits)

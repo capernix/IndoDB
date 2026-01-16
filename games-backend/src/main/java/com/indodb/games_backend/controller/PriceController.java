@@ -2,6 +2,7 @@ package com.indodb.games_backend.controller;
 
 import com.indodb.games_backend.model.GamePrice;
 import com.indodb.games_backend.service.PriceService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*") // For frontend development
+@Tag(name = "Price Analytics", description = "💰 Price intelligence, deals discovery, and market analytics for Indian gaming")
 public class PriceController {
     
     private final PriceService priceService;

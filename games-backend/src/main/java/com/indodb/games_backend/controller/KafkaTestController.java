@@ -1,6 +1,7 @@
 package com.indodb.games_backend.controller;
 
 import com.indodb.games_backend.service.PriceEventProducer;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*")
+@Tag(name = "Event Testing", description = "🧪 Kafka event system testing and development (POST endpoints)")
 public class KafkaTestController {
     
     private final PriceEventProducer priceEventProducer;
