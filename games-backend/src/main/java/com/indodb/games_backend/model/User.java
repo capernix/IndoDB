@@ -48,7 +48,7 @@ public class User implements UserDetails {
     private String lastName;
     
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
+    @Column(name = "role", nullable = false, length = 20)
     @Builder.Default
     private UserRole role = UserRole.USER;
     

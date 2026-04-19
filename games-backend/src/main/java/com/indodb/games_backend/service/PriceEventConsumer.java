@@ -65,10 +65,12 @@ public class PriceEventConsumer {
             
             // Send notifications to wishlisters
             notifyWishlisters(event);
-        } else {
+        } else if (event.getNewPrice().compareTo(event.getOldPrice()) > 0) {
             log.info("📈 Price INCREASE: {} - Price went up by ₹{}", 
                     event.getGameTitle(), 
                     event.getNewPrice().subtract(event.getOldPrice()));
+        } else {
+            log.debug("➡️ No price change for {}: ₹{}", event.getGameTitle(), event.getNewPrice());
         }
         
         log.info("✅ Price change processing completed for {}", event.getGameTitle());

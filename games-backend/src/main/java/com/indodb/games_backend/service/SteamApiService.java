@@ -13,6 +13,7 @@ import org.springframework.web.client.ResourceAccessException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Steam API Service with comprehensive rate limiting and error handling.
@@ -227,10 +228,27 @@ public class SteamApiService {
             gameDetails.put("appId", appId);
             gameDetails.put("name", dataNode.get("name").asText());
             gameDetails.put("type", dataNode.get("type").asText());
+            putIfPresent(gameDetails, "shortDescription", dataNode, "short_description");
+            putIfPresent(gameDetails, "description", dataNode, "detailed_description");
+            putIfPresent(gameDetails, "headerImageUrl", dataNode, "header_image");
+            putIfPresent(gameDetails, "metacriticScore", dataNode.path("metacritic"), "score");
+            if (dataNode.has("is_free")) {
+                gameDetails.put("isFree", dataNode.get("is_free").asBoolean());
+            }
+            if (dataNode.has("release_date") && dataNode.get("release_date").has("date")) {
+                gameDetails.put("releaseDate", dataNode.get("release_date").get("date").asText());
+            }
+            if (dataNode.has("genres") && dataNode.get("genres").isArray()) {
+                gameDetails.put("genres", streamDescriptions(dataNode.get("genres")));
+            }
+            if (dataNode.has("categories") && dataNode.get("categories").isArray()) {
+                gameDetails.put("tags", streamDescriptions(dataNode.get("categories")));
+            }
             
             // Price information
             JsonNode priceOverview = dataNode.get("price_overview");
             if (priceOverview != null) {
+                gameDetails.put("priceAvailable", true);
                 int finalPrice = priceOverview.get("final").asInt();
                 BigDecimal priceInINR = new BigDecimal(finalPrice).divide(new BigDecimal("100"));
                 gameDetails.put("currentPrice", priceInINR);
@@ -248,6 +266,7 @@ public class SteamApiService {
             } else {
                 gameDetails.put("currentPrice", BigDecimal.ZERO);
                 gameDetails.put("currency", "INR");
+                gameDetails.put("priceAvailable", dataNode.has("is_free") && dataNode.get("is_free").asBoolean());
             }
             
             // Additional details
@@ -255,10 +274,10 @@ public class SteamApiService {
                 gameDetails.put("steamAppId", dataNode.get("steam_appid").asText());
             }
             if (dataNode.has("developers")) {
-                gameDetails.put("developers", dataNode.get("developers"));
+                gameDetails.put("developers", streamTextValues(dataNode.get("developers")));
             }
             if (dataNode.has("publishers")) {
-                gameDetails.put("publishers", dataNode.get("publishers"));
+                gameDetails.put("publishers", streamTextValues(dataNode.get("publishers")));
             }
             
             return gameDetails;
@@ -267,6 +286,30 @@ public class SteamApiService {
             log.error("Error parsing game details for app ID {}: {}", appId, e.getMessage(), e);
             return null;
         }
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, JsonNode parent, String fieldName) {
+        JsonNode value = parent.get(fieldName);
+        if (value != null && !value.isNull()) {
+            if (value.isNumber()) {
+                target.put(key, value.asInt());
+            } else {
+                target.put(key, value.asText());
+            }
+        }
+    }
+
+    private java.util.List<String> streamDescriptions(JsonNode nodes) {
+        return java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .filter(node -> node.has("description"))
+                .map(node -> node.get("description").asText())
+                .collect(Collectors.toList());
+    }
+
+    private java.util.List<String> streamTextValues(JsonNode nodes) {
+        return java.util.stream.StreamSupport.stream(nodes.spliterator(), false)
+                .map(JsonNode::asText)
+                .collect(Collectors.toList());
     }
     
     /**

@@ -39,6 +39,22 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.indodb.games_backend.events"
+  
+  # Email Configuration (for price drop notifications)
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+    default-encoding: UTF-8
+
 
 # Server Configuration
 server:
@@ -87,32 +103,16 @@ steam:
     base-url: https://store.steampowered.com/api
     timeout: 10000  # 10 second timeout
 
-epic:
+itad:
   api:
-    # Epic Games API configuration (for future use)
-    base-url: https://store-site-backend-static.ak.epicgames.com
+    key: ${ITAD_API_KEY:your_itad_api_key_here}
+    base-url: https://api.isthereanydeal.com
     timeout: 10000
 
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}  # Base64 encoded 256-bit key
   expiration: 86400000  # 24 hours in milliseconds
-
-# Email Configuration (for price drop notifications)
-spring:
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-    default-encoding: UTF-8
 
 # Scheduling Configuration
 price:

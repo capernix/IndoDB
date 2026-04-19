@@ -35,7 +35,7 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
         LEFT JOIN users.wishlists w ON g.id = w.game_id AND w.is_active = true
         WHERE g.is_active = true
         GROUP BY g.id 
-        ORDER BY COUNT(w.id) DESC
+        ORDER BY COUNT(w.id) DESC, g.metacritic_score DESC NULLS LAST
         """, nativeQuery = true)
     List<Game> findTrendingByWishlists(Pageable pageable);
     
@@ -46,7 +46,7 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
         AND DATE_TRUNC('month', v.vote_month) = DATE_TRUNC('month', CURRENT_DATE)
         WHERE g.is_active = true
         GROUP BY g.id 
-        ORDER BY COUNT(v.id) DESC
+        ORDER BY COUNT(v.id) DESC, g.release_date DESC NULLS LAST
         """, nativeQuery = true)
     List<Game> findHottestByVotes(Pageable pageable);
     

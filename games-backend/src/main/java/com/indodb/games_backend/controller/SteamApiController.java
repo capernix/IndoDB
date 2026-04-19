@@ -2,6 +2,7 @@ package com.indodb.games_backend.controller;
 
 import com.indodb.games_backend.service.ApiRateLimiterService;
 import com.indodb.games_backend.service.GameCacheService;
+import com.indodb.games_backend.service.SteamCatalogSyncService;
 import com.indodb.games_backend.service.SteamApiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,10 +25,12 @@ import java.util.Map;
 @RequestMapping("/api/steam")
 @RequiredArgsConstructor
 @Slf4j
+@CrossOrigin(origins = "*")
 @Tag(name = "Steam Integration", description = "🎮 Steam Store API integration with Indian pricing and intelligent caching")
 public class SteamApiController {
     
     private final SteamApiService steamApiService;
+    private final SteamCatalogSyncService steamCatalogSyncService;
     private final ApiRateLimiterService rateLimiterService;
     private final GameCacheService cacheService;
     
@@ -154,6 +157,44 @@ public class SteamApiController {
         }
         
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Fetch a Steam app from the live Steam Store API and persist it into IndoDB.
+     * This is the bridge from "external API response" to the normal game/deal APIs.
+     */
+    @PostMapping("/sync/{appId}")
+    public ResponseEntity<?> syncSteamGame(@PathVariable String appId) {
+        log.info("Syncing Steam app ID into IndoDB: {}", appId);
+
+        if (!steamApiService.isApiAvailable()) {
+            return ResponseEntity.status(429).body(Map.of(
+                    "status", "RATE_LIMITED",
+                    "message", "Steam API rate limit exceeded. Please try again later.",
+                    "appId", appId
+            ));
+        }
+
+        try {
+            SteamCatalogSyncService.SyncResult result = steamCatalogSyncService.syncSteamGame(appId);
+            return ResponseEntity.ok(Map.of(
+                    "status", "SUCCESS",
+                    "game", result
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "status", "NOT_FOUND",
+                    "message", e.getMessage(),
+                    "appId", appId
+            ));
+        } catch (Exception e) {
+            log.error("Error syncing Steam app ID {}: {}", appId, e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "ERROR",
+                    "message", "Internal error while syncing Steam game",
+                    "appId", appId
+            ));
+        }
     }
     
     /**

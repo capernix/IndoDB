@@ -26,10 +26,12 @@ public class GamePrice {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "game_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonBackReference
     private Game game;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "platform_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Platform platform;
     
     @Column(name = "current_price", precision = 10, scale = 2)

@@ -66,6 +66,9 @@ public class Game {
     @Column(name = "gog_product_id")
     private Long gogProductId;
     
+    @Column(name = "itad_id")
+    private String itadId;
+    
     @Column(name = "header_image_url", length = 500)
     private String headerImageUrl;
     
@@ -82,6 +85,11 @@ public class Game {
     
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    
+    @OneToMany(mappedBy = "game", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @lombok.ToString.Exclude
+    @com.fasterxml.jackson.annotation.JsonManagedReference
+    private List<GamePrice> prices;
     
     @PrePersist
     protected void onCreate() {

@@ -59,6 +59,11 @@ public interface GamePriceRepository extends JpaRepository<GamePrice, UUID> {
     // Price tracking for specific game-platform combination
     Optional<GamePrice> findByGame_IdAndPlatform_Id(UUID gameId, Integer platformId);
     
+    // Alternative method name for convenience
+    default Optional<GamePrice> findByGameIdAndPlatformId(UUID gameId, Integer platformId) {
+        return findByGame_IdAndPlatform_Id(gameId, platformId);
+    }
+    
     // 🔥 TRENDING PRICE-BASED QUERIES
     
     // Biggest price drops recently (trending deals)

@@ -44,6 +44,7 @@ CREATE TABLE games.games (
     steam_app_id BIGINT,
     epic_catalog_item_id VARCHAR(255),
     gog_product_id BIGINT,
+    itad_id VARCHAR(255),
     header_image_url VARCHAR(500),
     screenshots TEXT[], -- Array of screenshot URLs
     is_active BOOLEAN DEFAULT true,
