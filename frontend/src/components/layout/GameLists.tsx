@@ -59,8 +59,9 @@ const formatINR = (price: number) =>
 
 function GameRow({ game, rank }: { game: ApiGame; rank: number }) {
     // Find the best deal or just default to first price
+    const priceValue = (value: number | null | undefined) => value ?? Number.POSITIVE_INFINITY;
     const bestPriceInfo = game.prices?.reduce((prev, curr) => 
-        (curr.currentPrice < prev.currentPrice) ? curr : prev
+        (priceValue(curr.currentPrice) < priceValue(prev.currentPrice)) ? curr : prev
     , game.prices[0]);
 
     const price = bestPriceInfo?.currentPrice ?? 0;

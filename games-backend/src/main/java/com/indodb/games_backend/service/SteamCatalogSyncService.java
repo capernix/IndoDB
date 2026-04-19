@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -103,6 +104,10 @@ public class SteamCatalogSyncService {
         if (!tags.isEmpty()) {
             game.setTags(tags);
         }
+
+        game.setDataSource("STEAM_API");
+        game.setSyncStatus("SUCCESS");
+        game.setLastSyncedAt(LocalDateTime.now());
     }
 
     private GamePrice upsertSteamPrice(Game game, Platform steam, Map<String, Object> details) {
@@ -125,6 +130,9 @@ public class SteamCatalogSyncService {
         price.setCurrency(PriceCurrency.INR);
         price.setIsFree(isFree);
         price.setIsOnSale(discount != null && discount > 0);
+        price.setDataSource("STEAM_API");
+        price.setSyncStatus("SUCCESS");
+        price.setLastSyncedAt(LocalDateTime.now());
 
         return gamePriceRepository.save(price);
     }

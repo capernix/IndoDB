@@ -2,13 +2,21 @@
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
+function getAuthToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("indodb_token");
+}
+
 async function request<T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> {
+    const token = getAuthToken();
+
     const res = await fetch(`${BASE_URL}${path}`, {
         headers: {
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...options.headers,
         },
         ...options,
@@ -19,6 +27,15 @@ async function request<T>(
         throw new Error(text || `HTTP ${res.status}`);
     }
 
+    if (res.status === 204) {
+        return undefined as T;
+    }
+
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+        return undefined as T;
+    }
+
     return res.json() as Promise<T>;
 }
 
@@ -26,8 +43,9 @@ async function request<T>(
 
 export interface AuthResponse {
     token: string;
+    type: string;
     user: {
-        id: number;
+        id: string;
         username: string;
         email: string;
         firstName?: string;
@@ -68,10 +86,28 @@ export interface Game {
 
 export interface GamePrice {
     platform: { id: number; name: string };
-    currentPrice: number;
-    originalPrice: number;
+    currentPrice: number | null;
+    originalPrice: number | null;
     discountPercentage: number;
     currency: string;
+}
+
+export interface WishlistItem {
+    id: string;
+    game: Game;
+    targetPrice: number | null;
+    currency: string;
+    isActive: boolean;
+}
+
+export interface VoteStatus {
+    hasVotedThisMonth: boolean;
+}
+
+export interface VoteLeaderboardEntry {
+    gameId: string;
+    gameTitle: string;
+    voteCount: number;
 }
 
 export function getTrendingGames(limit = 8) {
@@ -84,6 +120,49 @@ export function getBiggestDeals(limit = 8) {
 
 export function getHottestGames(limit = 8) {
     return request<Game[]>(`/api/games/hottest?limit=${limit}`);
+}
+
+export function getGameById(gameId: string) {
+    return request<Game>(`/api/games/${gameId}`);
+}
+
+export function getGamePriceComparison(gameId: string) {
+    return request<GamePrice[]>(`/api/prices/compare/${gameId}`);
+}
+
+export function getCurrentUser() {
+    return request<AuthResponse["user"]>("/api/auth/me");
+}
+
+export function getWishlist() {
+    return request<WishlistItem[]>("/api/wishlist");
+}
+
+export function addToWishlist(gameId: string, targetPrice?: number) {
+    return request<WishlistItem>(`/api/wishlist/${gameId}`, {
+        method: "POST",
+        body: JSON.stringify(targetPrice === undefined ? {} : { targetPrice }),
+    });
+}
+
+export function removeFromWishlist(gameId: string) {
+    return request<void>(`/api/wishlist/${gameId}`, {
+        method: "DELETE",
+    });
+}
+
+export function castVote(gameId: string) {
+    return request(`/api/votes/${gameId}`, {
+        method: "POST",
+    });
+}
+
+export function getVoteStatus() {
+    return request<VoteStatus>("/api/votes/status");
+}
+
+export function getVoteLeaderboard(limit = 10) {
+    return request<VoteLeaderboardEntry[]>(`/api/votes/leaderboard?limit=${limit}`);
 }
 
 // ─── Data Sync ───────────────────────────────────────────────────────────────

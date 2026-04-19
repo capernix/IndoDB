@@ -79,6 +79,17 @@ public class Game {
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+
+    @Column(name = "data_source", nullable = false)
+    @Builder.Default
+    private String dataSource = "SEEDED";
+
+    @Column(name = "sync_status", nullable = false)
+    @Builder.Default
+    private String syncStatus = "SUCCESS";
+
+    @Column(name = "last_synced_at")
+    private LocalDateTime lastSyncedAt;
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -97,6 +108,12 @@ public class Game {
         updatedAt = LocalDateTime.now();
         if (id == null) {
             id = UUID.randomUUID();
+        }
+        if (dataSource == null || dataSource.isBlank()) {
+            dataSource = "SEEDED";
+        }
+        if (syncStatus == null || syncStatus.isBlank()) {
+            syncStatus = "SUCCESS";
         }
     }
     

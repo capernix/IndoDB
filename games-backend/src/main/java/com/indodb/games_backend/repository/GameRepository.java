@@ -35,7 +35,11 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
         LEFT JOIN users.wishlists w ON g.id = w.game_id AND w.is_active = true
         WHERE g.is_active = true
         GROUP BY g.id 
-        ORDER BY COUNT(w.id) DESC, g.metacritic_score DESC NULLS LAST
+        ORDER BY
+            CASE WHEN g.data_source IN ('STEAM_API', 'ITAD_API') THEN 0 ELSE 1 END,
+            g.last_synced_at DESC NULLS LAST,
+            COUNT(w.id) DESC,
+            g.metacritic_score DESC NULLS LAST
         """, nativeQuery = true)
     List<Game> findTrendingByWishlists(Pageable pageable);
     
@@ -46,25 +50,46 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
         AND DATE_TRUNC('month', v.vote_month) = DATE_TRUNC('month', CURRENT_DATE)
         WHERE g.is_active = true
         GROUP BY g.id 
-        ORDER BY COUNT(v.id) DESC, g.release_date DESC NULLS LAST
+        ORDER BY
+            CASE WHEN g.data_source IN ('STEAM_API', 'ITAD_API') THEN 0 ELSE 1 END,
+            g.last_synced_at DESC NULLS LAST,
+            COUNT(v.id) DESC,
+            g.release_date DESC NULLS LAST
         """, nativeQuery = true)
     List<Game> findHottestByVotes(Pageable pageable);
     
     // Biggest price drops (deal alerts)
     @Query(value = """
-        SELECT g.* FROM games.games g 
-        INNER JOIN games.game_prices gp ON g.id = gp.game_id
-        WHERE g.is_active = true AND gp.is_on_sale = true
-        ORDER BY gp.discount_percentage DESC
+        SELECT g.* FROM games.games g
+        INNER JOIN (
+            SELECT gp.game_id, MAX(gp.discount_percentage) AS best_discount
+            FROM games.game_prices gp
+            WHERE gp.is_on_sale = true
+            GROUP BY gp.game_id
+        ) d ON g.id = d.game_id
+        WHERE g.is_active = true
+        ORDER BY
+            CASE WHEN g.data_source IN ('STEAM_API', 'ITAD_API') THEN 0 ELSE 1 END,
+            g.last_synced_at DESC NULLS LAST,
+            d.best_discount DESC,
+            g.metacritic_score DESC NULLS LAST
         """, nativeQuery = true)
     List<Game> findBiggestDeals(Pageable pageable);
     
     // Free games (epic freebies, etc.)
     @Query(value = """
-        SELECT g.* FROM games.games g 
-        INNER JOIN games.game_prices gp ON g.id = gp.game_id
-        WHERE g.is_active = true AND gp.is_free = true
-        ORDER BY gp.last_updated DESC
+        SELECT g.* FROM games.games g
+        INNER JOIN (
+            SELECT gp.game_id, MAX(gp.last_updated) AS latest_free_at
+            FROM games.game_prices gp
+            WHERE gp.is_free = true
+            GROUP BY gp.game_id
+        ) f ON g.id = f.game_id
+        WHERE g.is_active = true
+        ORDER BY
+            CASE WHEN g.data_source IN ('STEAM_API', 'ITAD_API') THEN 0 ELSE 1 END,
+            g.last_synced_at DESC NULLS LAST,
+            f.latest_free_at DESC
         """, nativeQuery = true)
     List<Game> findFreeGames(Pageable pageable);
     

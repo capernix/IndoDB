@@ -65,6 +65,17 @@ public class GamePrice {
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "data_source", nullable = false)
+    @Builder.Default
+    private String dataSource = "SEEDED";
+
+    @Column(name = "sync_status", nullable = false)
+    @Builder.Default
+    private String syncStatus = "SUCCESS";
+
+    @Column(name = "last_synced_at")
+    private LocalDateTime lastSyncedAt;
     
     @PrePersist
     protected void onCreate() {
@@ -72,6 +83,12 @@ public class GamePrice {
         lastUpdated = LocalDateTime.now();
         if (id == null) {
             id = UUID.randomUUID();
+        }
+        if (dataSource == null || dataSource.isBlank()) {
+            dataSource = "SEEDED";
+        }
+        if (syncStatus == null || syncStatus.isBlank()) {
+            syncStatus = "SUCCESS";
         }
         calculateDiscountPercentage();
     }

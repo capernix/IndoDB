@@ -4,7 +4,7 @@ const TOKEN_KEY = "indodb_token";
 const USER_KEY  = "indodb_user";
 
 export interface AuthUser {
-    id: number;
+    id: string;
     username: string;
     email: string;
     firstName?: string;

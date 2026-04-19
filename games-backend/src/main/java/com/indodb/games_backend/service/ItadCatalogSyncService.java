@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,9 @@ public class ItadCatalogSyncService {
             }
 
             game.setItadId(itadId);
+            game.setDataSource("ITAD_API");
+            game.setSyncStatus("SUCCESS");
+            game.setLastSyncedAt(LocalDateTime.now());
             gameRepository.save(game);
             linkedItadId = true;
         }
@@ -108,6 +112,9 @@ public class ItadCatalogSyncService {
         price.setCurrency(PriceCurrency.INR);
         price.setIsFree(storePrice.currentPrice().compareTo(BigDecimal.ZERO) == 0);
         price.setIsOnSale(storePrice.discountPercentage() != null && storePrice.discountPercentage() > 0);
+        price.setDataSource("ITAD_API");
+        price.setSyncStatus("SUCCESS");
+        price.setLastSyncedAt(LocalDateTime.now());
 
         GamePrice savedPrice = gamePriceRepository.save(price);
         recordHistory(game, platform, savedPrice);

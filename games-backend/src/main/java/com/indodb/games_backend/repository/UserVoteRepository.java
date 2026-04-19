@@ -43,6 +43,7 @@ public interface UserVoteRepository extends JpaRepository<UserVote, UUID> {
         FROM users.user_votes v
         INNER JOIN games.games g ON v.game_id = g.id
         WHERE v.vote_month = :voteMonth
+        AND g.is_active = true
         GROUP BY g.id, g.title
         ORDER BY vote_count DESC
         LIMIT :limit
