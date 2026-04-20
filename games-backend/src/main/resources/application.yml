@@ -128,3 +128,15 @@ price:
   fetch:
     interval: 3600000  # 1 hour in milliseconds
     batch-size: 50  # Number of games to update per batch (respects rate limits)
+
+top-sync:
+  count: ${TOP_SYNC_COUNT:2000}
+  validation:
+    minimum-items: ${TOP_SYNC_MINIMUM_ITEMS:1500}
+  sources:
+    official:
+      enabled: ${TOP_SYNC_OFFICIAL_ENABLED:true}
+      count: ${TOP_SYNC_OFFICIAL_COUNT:100}
+      url: ${TOP_SYNC_OFFICIAL_URL:https://api.steampowered.com/ISteamChartsService/GetMostPlayedGames/v1/?key=%s}
+    steamspy:
+      url: ${TOP_SYNC_STEAMSPY_URL:https://steamspy.com/api.php?request=all&page=%d}
