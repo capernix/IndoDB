@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { LogOut, User } from "lucide-react";
+import { LogIn, LogOut, User } from "lucide-react";
 import { getUser, clearAuth, isLoggedIn } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
 
@@ -32,7 +32,7 @@ export const FloatingNav = ({ className }: { className?: string }) => {
 
     return (
         <nav className={cn("fixed top-0 inset-x-0 z-[5000] border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-md", className)}>
-            <div className="px-12 h-16 flex items-center">
+            <div className="mx-auto flex h-16 w-full max-w-7xl items-center px-4 sm:px-6 lg:px-10">
 
                 {/* Left: Logo + Nav */}
                 <div className="flex items-center gap-8">
@@ -91,9 +91,15 @@ export const FloatingNav = ({ className }: { className?: string }) => {
                 ) : (
                     <Link
                         href="/login"
-                        className="rounded-full px-5 py-2 text-sm font-semibold transition-colors hover:bg-[#FF9933] hover:text-black"
-                        style={{ border: "1px solid rgba(255,255,255,0.15)", color: "#d4d4d4" }}
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold tracking-wide transition-all duration-200 hover:-translate-y-[1px] hover:text-white"
+                        style={{
+                            border: "1px solid rgba(255,153,51,0.45)",
+                            color: "#f5f5f5",
+                            background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
+                            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 16px rgba(0,0,0,0.35)",
+                        }}
                     >
+                        <LogIn className="h-4 w-4" />
                         Sign In
                     </Link>
                 )}

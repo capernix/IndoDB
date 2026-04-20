@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BadgePercent, ChevronRight, Flame, TrendingUp } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -127,17 +128,31 @@ function GameRow({ game, rank }: { game: ApiGame; rank: number }) {
 
 // ─── List ────────────────────────────────────────────────────────────────────
 
-function GameList({ title, games, href }: { title: string; games: ApiGame[]; href: string }) {
+type ListIcon = typeof TrendingUp;
+
+function GameList({
+    title,
+    games,
+    href,
+    Icon,
+}: {
+    title: string;
+    games: ApiGame[];
+    href: string;
+    Icon: ListIcon;
+}) {
     return (
         <div>
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-2">
                 <Link
                     href={href}
-                    className="text-[28px] font-black text-white hover:text-[#FF9933] transition-colors"
+                    className="inline-flex items-center gap-2.5 text-[28px] font-black text-white hover:text-[#FF9933] transition-colors"
                     style={{ letterSpacing: "-0.03em" }}
                 >
-                    {title} <span className="text-neutral-600 font-normal text-lg">→</span>
+                    <Icon className="h-[18px] w-[18px]" />
+                    <span>{title}</span>
+                    <ChevronRight className="h-[18px] w-[18px] text-neutral-600" />
                 </Link>
 
                 <div className="hidden sm:flex items-center gap-5 text-[11px] uppercase tracking-widest text-neutral-600">
@@ -159,12 +174,6 @@ function GameList({ title, games, href }: { title: string; games: ApiGame[]; hre
 
 // ─── Section ─────────────────────────────────────────────────────────────────
 
-const LISTS = [
-    { title: "🔥 Trending Games",    games: [], href: "/trending" },
-    { title: "💰 Biggest Discounts", games: [], href: "/deals" },
-    { title: "🌶️ Hottest Games",    games: [], href: "/hottest" },
-];
-
 export function GameLists() {
     const { trending, deals, hottest, loading } = useGamesData();
 
@@ -177,9 +186,9 @@ export function GameLists() {
     }
 
     const liveLists = [
-        { title: "🔥 Trending Now",      games: trending, href: "/trending" },
-        { title: "💰 Biggest Discounts", games: deals,    href: "/deals" },
-        { title: "🌶️ Hottest Games",    games: hottest,   href: "/hottest" },
+        { title: "Trending Now", games: trending, href: "/trending", Icon: TrendingUp },
+        { title: "Biggest Discounts", games: deals, href: "/deals", Icon: BadgePercent },
+        { title: "Hottest Games", games: hottest, href: "/hottest", Icon: Flame },
     ];
 
     return (

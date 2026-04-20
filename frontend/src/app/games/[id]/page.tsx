@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Heart } from "lucide-react";
+import { BarChart3, ExternalLink, Heart } from "lucide-react";
 import { PriceChart, type PriceHistoryPoint } from "@/components/ui/PriceChart";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
@@ -78,14 +78,14 @@ function PlatformCard({
 
     return (
         <div
-            className="relative flex flex-col rounded-2xl p-8"
+            className="relative flex h-full flex-col rounded-2xl p-8"
             style={{
                 background: "#0d0f11",
                 border: isBest ? `1.5px solid ${accent}55` : "1px solid rgba(255,255,255,0.07)",
                 boxShadow: isBest ? `0 0 40px ${accent}22` : "none",
             }}
         >
-            <div className="absolute -top-3 left-0 right-0 flex justify-between px-6">
+            <div className="mb-4 flex min-h-6 items-center justify-between gap-3">
                 {isBest ? (
                     <span
                         className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest"
@@ -106,7 +106,7 @@ function PlatformCard({
                 )}
             </div>
 
-            <p className="mb-8 font-bold uppercase tracking-widest" style={{ fontSize: 13, color: accent }}>
+            <p className="mb-6 font-bold uppercase tracking-widest" style={{ fontSize: 13, color: accent }}>
                 {price.platform.name}
             </p>
 
@@ -233,8 +233,15 @@ export default async function GameDetailPage({ params }: { params: Promise<{ id:
                         </h1>
                         <div className="flex flex-wrap items-center gap-3 text-[15px]" style={{ color: "#737373" }}>
                             {typeof game.metacriticScore === "number" && (
-                                <span>
-                                    <span style={{ color: "#22c55e", fontWeight: 700 }}>{game.metacriticScore}</span> metacritic
+                                <span
+                                    className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1"
+                                    style={{ borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.1)" }}
+                                >
+                                    <BarChart3 className="h-3.5 w-3.5" style={{ color: "#22c55e" }} />
+                                    <span style={{ color: "#22c55e", fontWeight: 700 }}>{game.metacriticScore}</span>
+                                    <span style={{ color: "#86efac", fontSize: 12, fontWeight: 600, letterSpacing: "0.03em" }}>
+                                        METACRITIC
+                                    </span>
                                 </span>
                             )}
                             {game.developer && <span>{game.developer}</span>}
@@ -250,7 +257,7 @@ export default async function GameDetailPage({ params }: { params: Promise<{ id:
                         className="flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-colors hover:bg-white/10"
                         style={{ border: "1px solid rgba(255,255,255,0.1)", color: "#a3a3a3" }}
                     >
-                        <Heart className="h-4 w-4" />
+                        <Heart className="h-[16px] w-[16px]" />
                         Add to Wishlist
                     </button>
                 </div>

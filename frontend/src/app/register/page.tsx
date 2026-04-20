@@ -147,9 +147,10 @@ export default function RegisterPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword((v) => !v)}
-                                    style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", color: "#525252", background: "none", border: "none", cursor: "pointer" }}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-white/5"
+                                    style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#525252", background: "none", border: "none", cursor: "pointer" }}
                                 >
-                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </button>
                             </div>
                         </div>
