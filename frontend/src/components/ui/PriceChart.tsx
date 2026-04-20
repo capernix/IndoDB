@@ -11,25 +11,16 @@ import {
     Legend,
 } from "recharts";
 
-// ─── Mock price history data ──────────────────────────────────────────────────
+export type PriceHistoryPoint = {
+    date: string;
+    steam?: number | null;
+    epic?: number | null;
+    gog?: number | null;
+};
 
-const HISTORY = [
-    { month: "Apr '24", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "May '24", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "Jun '24", steam: 1049, epic: 989,  gog: 840  },
-    { month: "Jul '24", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "Aug '24", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "Sep '24", steam: 699,  epic: 999,  gog: 649  },
-    { month: "Oct '24", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "Nov '24", steam: 699,  epic: 999,  gog: 649  },
-    { month: "Dec '24", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "Jan '25", steam: 699,  epic: 3299, gog: 2799 },
-    { month: "Feb '25", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "Mar '25", steam: 3499, epic: 3299, gog: 2799 },
-    { month: "Apr '25", steam: 699,  epic: 3299, gog: 649  },
-];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+type PriceChartProps = {
+    data: PriceHistoryPoint[];
+};
 
 const formatINR = (value: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -38,7 +29,25 @@ const formatINR = (value: number) =>
         maximumFractionDigits: 0,
     }).format(value);
 
-// ─── Custom tooltip ───────────────────────────────────────────────────────────
+function formatDateLabel(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
+
+function formatTooltipDate(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleDateString("en-IN", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+    });
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CustomTooltip({ active, payload, label }: any) {
@@ -53,9 +62,9 @@ function CustomTooltip({ active, payload, label }: any) {
                 minWidth: 160,
             }}
         >
-            <p style={{ color: "#737373", fontSize: 12, marginBottom: 10 }}>{label}</p>
+            <p style={{ color: "#737373", fontSize: 12, marginBottom: 10 }}>{formatTooltipDate(label)}</p>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {payload.map((p: any) => (
+            {payload.filter((p: any) => typeof p.value === "number").map((p: any) => (
                 <p
                     key={p.dataKey}
                     style={{ color: p.color, fontSize: 14, fontWeight: 700, marginBottom: 4 }}
@@ -67,20 +76,26 @@ function CustomTooltip({ active, payload, label }: any) {
     );
 }
 
-// ─── Chart component ──────────────────────────────────────────────────────────
+export function PriceChart({ data }: PriceChartProps) {
+    if (!data.length) {
+        return (
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-6 py-10 text-sm text-neutral-400">
+                Not enough price history yet. Sync this game a few times to build a trend line.
+            </div>
+        );
+    }
 
-export function PriceChart() {
     return (
         <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={HISTORY} margin={{ top: 10, right: 4, left: 8, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 10, right: 4, left: 8, bottom: 0 }}>
                 <defs>
                     <linearGradient id="steamGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
                         <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="epicGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="gogGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#FF9933" stopOpacity={0.2} />
@@ -91,10 +106,12 @@ export function PriceChart() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
 
                 <XAxis
-                    dataKey="month"
+                    dataKey="date"
+                    tickFormatter={formatDateLabel}
                     tick={{ fill: "#737373", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
+                    minTickGap={28}
                 />
                 <YAxis
                     tickFormatter={(v) => `₹${(v / 1000).toFixed(1)}k`}
@@ -105,9 +122,7 @@ export function PriceChart() {
                 />
 
                 <Tooltip content={<CustomTooltip />} />
-                <Legend
-                    wrapperStyle={{ color: "#a3a3a3", fontSize: 13, paddingTop: 20 }}
-                />
+                <Legend wrapperStyle={{ color: "#a3a3a3", fontSize: 13, paddingTop: 20 }} />
 
                 <Area
                     type="stepAfter"
@@ -117,15 +132,17 @@ export function PriceChart() {
                     fill="url(#steamGrad)"
                     strokeWidth={2}
                     dot={false}
+                    connectNulls
                 />
                 <Area
                     type="stepAfter"
                     dataKey="epic"
                     name="Epic"
-                    stroke="#a855f7"
+                    stroke="#94a3b8"
                     fill="url(#epicGrad)"
                     strokeWidth={2}
                     dot={false}
+                    connectNulls
                 />
                 <Area
                     type="stepAfter"
@@ -135,6 +152,7 @@ export function PriceChart() {
                     fill="url(#gogGrad)"
                     strokeWidth={2}
                     dot={false}
+                    connectNulls
                 />
             </AreaChart>
         </ResponsiveContainer>

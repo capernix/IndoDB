@@ -68,6 +68,9 @@ function GameRow({ game, rank }: { game: ApiGame; rank: number }) {
     const originalPrice = bestPriceInfo?.originalPrice ?? 0;
     const discount = bestPriceInfo?.discountPercentage ?? 0;
     const platformName = bestPriceInfo?.platform?.name ?? "Steam";
+    const isLive = game.dataSource === "STEAM_API" || game.dataSource === "ITAD_API";
+    const freshnessLabel = isLive ? "Live" : "Seeded";
+    const freshnessColor = isLive ? "text-emerald-400" : "text-amber-300";
 
     return (
         <Link href={`/games/${game.id}`} className="group flex items-center gap-6 border-b border-white/[0.05] py-8 last:border-0 hover:bg-white/[0.03] transition-colors -mx-4 px-4 rounded-lg cursor-pointer">
@@ -98,6 +101,9 @@ function GameRow({ game, rank }: { game: ApiGame; rank: number }) {
                 </p>
                 <p className="text-[12px] text-neutral-600 mt-1 uppercase tracking-widest">
                     {platformName}
+                </p>
+                <p className={`text-[11px] mt-1 uppercase tracking-wider ${freshnessColor}`}>
+                    {freshnessLabel}
                 </p>
             </div>
 

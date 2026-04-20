@@ -2,6 +2,7 @@ package com.indodb.games_backend.service;
 
 import com.indodb.games_backend.model.GamePrice;
 import com.indodb.games_backend.repository.GamePriceRepository;
+import com.indodb.games_backend.repository.PriceHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -10,7 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +27,7 @@ import java.util.UUID;
 public class PriceService {
     
     private final GamePriceRepository gamePriceRepository;
+    private final PriceHistoryRepository priceHistoryRepository;
     
     // 🎯 CORE INDIAN GAMING PRICE INTELLIGENCE
     
@@ -93,6 +100,44 @@ public class PriceService {
         log.info("Found {} price options for game {}", prices.size(), gameId);
         return prices;
     }
+
+    public List<PriceHistoryPoint> getGamePriceHistory(UUID gameId, int days) {
+        int safeDays = Math.max(7, Math.min(days, 365));
+        LocalDateTime since = LocalDateTime.now().minusDays(safeDays);
+
+        List<Object[]> rows = priceHistoryRepository.findLatestDailySnapshotsByGameIdSince(gameId, since);
+        Map<LocalDate, PriceHistoryPoint> points = new LinkedHashMap<>();
+
+        for (Object[] row : rows) {
+            if (row == null || row.length < 3) {
+                continue;
+            }
+
+            LocalDate date = toLocalDate(row[0]);
+            String platformType = row[1] == null ? null : row[1].toString();
+            BigDecimal price = toBigDecimal(row[2]);
+
+            if (date == null || platformType == null || price == null) {
+                continue;
+            }
+
+            PriceHistoryPoint point = points.computeIfAbsent(date, d -> PriceHistoryPoint.builder()
+                    .date(d.toString())
+                    .build());
+
+            if ("STEAM".equalsIgnoreCase(platformType)) {
+                point.setSteam(price);
+            } else if ("EPIC".equalsIgnoreCase(platformType)) {
+                point.setEpic(price);
+            } else if ("GOG".equalsIgnoreCase(platformType)) {
+                point.setGog(price);
+            }
+        }
+
+        List<PriceHistoryPoint> result = points.values().stream().toList();
+        log.info("Fetched {} history points for game {} (days={})", result.size(), gameId, safeDays);
+        return result;
+    }
     
     /**
      * Platform statistics for homepage insights
@@ -161,6 +206,50 @@ public class PriceService {
             private int gameCount;
             private BigDecimal averagePrice;
             private int averageDiscount;
+        }
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.AllArgsConstructor
+    @lombok.NoArgsConstructor
+    public static class PriceHistoryPoint {
+        private String date;
+        private BigDecimal steam;
+        private BigDecimal epic;
+        private BigDecimal gog;
+    }
+
+    private LocalDate toLocalDate(Object value) {
+        if (value instanceof Timestamp ts) {
+            return ts.toLocalDateTime().toLocalDate();
+        }
+        if (value instanceof java.sql.Date date) {
+            return date.toLocalDate();
+        }
+        if (value instanceof LocalDateTime ldt) {
+            return ldt.toLocalDate();
+        }
+        if (value instanceof LocalDate ld) {
+            return ld;
+        }
+        return null;
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value instanceof BigDecimal b) {
+            return b;
+        }
+        if (value instanceof Number n) {
+            return BigDecimal.valueOf(n.doubleValue());
+        }
+        if (value == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }

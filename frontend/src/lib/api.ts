@@ -81,6 +81,9 @@ export interface Game {
     description: string;
     steamAppId?: number;
     headerImageUrl: string;
+    dataSource?: "STEAM_API" | "ITAD_API" | "SEEDED" | string;
+    syncStatus?: "SUCCESS" | "FAILED" | "PARTIAL" | string;
+    lastSyncedAt?: string;
     prices?: GamePrice[];
 }
 
@@ -90,6 +93,9 @@ export interface GamePrice {
     originalPrice: number | null;
     discountPercentage: number;
     currency: string;
+    dataSource?: "STEAM_API" | "ITAD_API" | "SEEDED" | string;
+    syncStatus?: "SUCCESS" | "FAILED" | "PARTIAL" | string;
+    lastSyncedAt?: string;
 }
 
 export interface WishlistItem {
@@ -202,6 +208,53 @@ export interface ItadSyncResponse {
 
 export function syncSteamGame(steamAppId: string) {
     return request<SteamSyncResponse>(`/api/steam/sync/${steamAppId}`, {
+        method: "POST",
+    });
+}
+
+export function queueSteamGameSync(steamAppId: string, options?: {
+    source?: string;
+    priority?: "HIGH" | "MEDIUM" | "LOW";
+    includeItad?: boolean;
+}) {
+    const source = options?.source ?? "USER_IMPORT";
+    const priority = options?.priority ?? "HIGH";
+    const includeItad = options?.includeItad ?? true;
+
+    const query = new URLSearchParams({
+        source,
+        priority,
+        includeItad: String(includeItad),
+    }).toString();
+
+    return request<{ status: string; appId: string }>(`/api/steam/sync/queue/${steamAppId}?${query}`, {
+        method: "POST",
+    });
+}
+
+export interface SyncVisibleResponse {
+    status: string;
+    mode: "SYNCED" | "QUEUED";
+    limit: number;
+    includeItad: boolean;
+    totalCandidates: number;
+    candidateAppIds: string[];
+    syncedAppIds: string[];
+    queuedAppIds: string[];
+    failedAppIds: string[];
+}
+
+export function syncVisibleHomepageGames(options?: {
+    limit?: number;
+    includeItad?: boolean;
+    queueOnly?: boolean;
+}) {
+    const limit = String(options?.limit ?? 8);
+    const includeItad = String(options?.includeItad ?? true);
+    const queueOnly = String(options?.queueOnly ?? false);
+
+    const query = new URLSearchParams({ limit, includeItad, queueOnly }).toString();
+    return request<SyncVisibleResponse>(`/api/steam/sync-visible?${query}`, {
         method: "POST",
     });
 }

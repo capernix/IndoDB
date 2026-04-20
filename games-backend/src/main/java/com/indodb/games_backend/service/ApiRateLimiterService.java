@@ -2,10 +2,13 @@ package com.indodb.games_backend.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * BULLETPROOF Rate Limiting Service
@@ -18,17 +21,17 @@ public class ApiRateLimiterService {
     
     private final RedisTemplate<String, String> redisTemplate;
     
-    // CONSERVATIVE Steam API Limits (much lower than actual to be safe)
-    private static final int STEAM_CALLS_PER_MINUTE = 10;  // Steam allows ~200, we use 10
-    private static final int STEAM_CALLS_PER_HOUR = 200;   // Steam allows ~10000, we use 200
-    private static final int STEAM_CALLS_PER_DAY = 2000;   // Steam allows ~100000, we use 2000
-    
-    // Epic/Other API limits (very conservative)
-    private static final int OTHER_CALLS_PER_MINUTE = 5;
-    private static final int OTHER_CALLS_PER_HOUR = 100;
-    
-    // Minimum interval between Steam API calls (5 seconds = 0.2 calls/second)
-    private static final long MIN_CALL_INTERVAL_MS = 5000;
+    @Value("${api.rate-limit.steam.capacity:20}")
+    private int steamCapacity;
+
+    @Value("${api.rate-limit.steam.refill-per-second:0.67}")
+    private double steamRefillPerSecond;
+
+    @Value("${api.rate-limit.other.capacity:8}")
+    private int otherCapacity;
+
+    @Value("${api.rate-limit.other.refill-per-second:0.2}")
+    private double otherRefillPerSecond;
     
     /**
      * Check if we can make a Steam API call
@@ -36,20 +39,14 @@ public class ApiRateLimiterService {
      * @return true if allowed, false if rate limited
      */
     public boolean canMakeSteamApiCall() {
-        // First check the 5-second minimum interval
-        if (!checkMinimumInterval("steam")) {
-            return false;
-        }
-        
-        // Then check the overall rate limits
-        return checkRateLimit("steam", STEAM_CALLS_PER_MINUTE, STEAM_CALLS_PER_HOUR, STEAM_CALLS_PER_DAY);
+        return tryConsumeToken("steam", steamCapacity, steamRefillPerSecond);
     }
     
     /**
      * Check if we can make other API calls (Epic, GOG, etc.)
      */
     public boolean canMakeOtherApiCall(String apiName) {
-        return checkRateLimit(apiName.toLowerCase(), OTHER_CALLS_PER_MINUTE, OTHER_CALLS_PER_HOUR, 1000);
+        return tryConsumeToken(apiName.toLowerCase(), otherCapacity, otherRefillPerSecond);
     }
     
     /**
@@ -57,29 +54,17 @@ public class ApiRateLimiterService {
      */
     public void recordApiCall(String apiName) {
         try {
-            String baseKey = "api_limit:" + apiName.toLowerCase();
-            
-            // Increment minute counter
-            String minuteKey = baseKey + ":minute:" + (System.currentTimeMillis() / 60000);
-            redisTemplate.opsForValue().increment(minuteKey);
-            redisTemplate.expire(minuteKey, Duration.ofMinutes(2));
-            
-            // Increment hour counter  
-            String hourKey = baseKey + ":hour:" + (System.currentTimeMillis() / 3600000);
-            redisTemplate.opsForValue().increment(hourKey);
-            redisTemplate.expire(hourKey, Duration.ofHours(2));
-            
-            // Increment day counter
-            String dayKey = baseKey + ":day:" + (System.currentTimeMillis() / 86400000);
-            redisTemplate.opsForValue().increment(dayKey);
-            redisTemplate.expire(dayKey, Duration.ofDays(2));
-            
-            // Record the call time for minimum interval checking
-            String lastCallKey = "api_last_call:" + apiName.toLowerCase();
-            redisTemplate.opsForValue().set(lastCallKey, String.valueOf(System.currentTimeMillis()), Duration.ofSeconds(10));
-            
-            log.debug("🔢 Recorded API call for {}", apiName);
-            
+            String key = apiName.toLowerCase();
+            String usageMinuteKey = "api_usage:" + key + ":minute:" + (System.currentTimeMillis() / 60000);
+            String usageHourKey = "api_usage:" + key + ":hour:" + (System.currentTimeMillis() / 3600000);
+            String usageDayKey = "api_usage:" + key + ":day:" + (System.currentTimeMillis() / 86400000);
+
+            redisTemplate.opsForValue().increment(usageMinuteKey);
+            redisTemplate.expire(usageMinuteKey, Duration.ofMinutes(2));
+            redisTemplate.opsForValue().increment(usageHourKey);
+            redisTemplate.expire(usageHourKey, Duration.ofHours(2));
+            redisTemplate.opsForValue().increment(usageDayKey);
+            redisTemplate.expire(usageDayKey, Duration.ofDays(2));
         } catch (Exception e) {
             log.error("❌ Failed to record API call for {}: {}", apiName, e.getMessage());
         }
@@ -90,7 +75,7 @@ public class ApiRateLimiterService {
      */
     public ApiUsageStats getUsageStats(String apiName) {
         try {
-            String baseKey = "api_limit:" + apiName.toLowerCase();
+            String baseKey = "api_usage:" + apiName.toLowerCase();
             
             long currentMinute = System.currentTimeMillis() / 60000;
             long currentHour = System.currentTimeMillis() / 3600000;
@@ -111,63 +96,90 @@ public class ApiRateLimiterService {
             return new ApiUsageStats(apiName, 0, 0, 0);
         }
     }
-    
-    private boolean checkRateLimit(String apiName, int perMinute, int perHour, int perDay) {
+
+    public Map<String, Object> getTokenBucketStatus(String apiName) {
         try {
-            String baseKey = "api_limit:" + apiName;
-            
-            long currentMinute = System.currentTimeMillis() / 60000;
-            long currentHour = System.currentTimeMillis() / 3600000;
-            long currentDay = System.currentTimeMillis() / 86400000;
-            
-            String minuteKey = baseKey + ":minute:" + currentMinute;
-            String hourKey = baseKey + ":hour:" + currentHour;
-            String dayKey = baseKey + ":day:" + currentDay;
-            
-            int minuteCount = getCount(minuteKey);
-            int hourCount = getCount(hourKey);
-            int dayCount = getCount(dayKey);
-            
-            boolean allowed = minuteCount < perMinute && hourCount < perHour && dayCount < perDay;
-            
-            if (!allowed) {
-                log.warn("🚫 Rate limit exceeded for {}: {}min/{}hr/{}day (limits: {}/{}/{})", 
-                        apiName, minuteCount, hourCount, dayCount, perMinute, perHour, perDay);
-            }
-            
-            return allowed;
-            
+            String key = apiName.toLowerCase();
+            int capacity = "steam".equals(key) ? steamCapacity : otherCapacity;
+            double refill = "steam".equals(key) ? steamRefillPerSecond : otherRefillPerSecond;
+            TokenState state = getAndRefillBucket(key, capacity, refill);
+
+            Map<String, Object> status = new HashMap<>();
+            status.put("api", key);
+            status.put("capacity", capacity);
+            status.put("refillPerSecond", refill);
+            status.put("tokensRemaining", state.tokens);
+            status.put("updatedAt", state.lastRefillMs);
+            return status;
         } catch (Exception e) {
-            log.error("❌ Error checking rate limit for {}: {}", apiName, e.getMessage());
-            return false; // Fail safe - don't allow calls if we can't check limits
+            log.error("❌ Failed token bucket status lookup for {}: {}", apiName, e.getMessage());
+            return Map.of("api", apiName.toLowerCase(), "error", e.getMessage());
         }
     }
-    
-    /**
-     * Check minimum interval between calls (5 seconds for Steam API)
-     * This enforces 0.2 calls per second maximum
-     */
-    private boolean checkMinimumInterval(String apiName) {
+
+    private boolean tryConsumeToken(String apiName, int capacity, double refillPerSecond) {
         try {
-            String lastCallKey = "api_last_call:" + apiName.toLowerCase();
-            String lastCallStr = redisTemplate.opsForValue().get(lastCallKey);
-            
-            if (lastCallStr != null) {
-                long lastCallTime = Long.parseLong(lastCallStr);
-                long timeSinceLastCall = System.currentTimeMillis() - lastCallTime;
-                
-                if (timeSinceLastCall < MIN_CALL_INTERVAL_MS) {
-                    log.warn("🕐 Minimum interval not met for {}: {}ms < {}ms required", 
-                            apiName, timeSinceLastCall, MIN_CALL_INTERVAL_MS);
-                    return false;
-                }
+            TokenState state = getAndRefillBucket(apiName, capacity, refillPerSecond);
+            if (state.tokens < 1.0) {
+                log.warn("🚫 Token bucket empty for {} (tokens={})", apiName, state.tokens);
+                return false;
             }
-            
+
+            state.tokens = state.tokens - 1.0;
+            saveTokenState(apiName, state);
             return true;
-            
         } catch (Exception e) {
-            log.error("❌ Error checking minimum interval for {}: {}", apiName, e.getMessage());
-            return false; // Fail safe
+            log.error("❌ Error consuming token for {}: {}", apiName, e.getMessage());
+            return false;
+        }
+    }
+
+    private TokenState getAndRefillBucket(String apiName, int capacity, double refillPerSecond) {
+        String tokenKey = "api_bucket:" + apiName + ":tokens";
+        String refillKey = "api_bucket:" + apiName + ":last_refill_ms";
+
+        long now = System.currentTimeMillis();
+        double tokens = parseDouble(redisTemplate.opsForValue().get(tokenKey), capacity);
+        long lastRefillMs = parseLong(redisTemplate.opsForValue().get(refillKey), now);
+
+        long elapsedMs = Math.max(0, now - lastRefillMs);
+        double refillTokens = (elapsedMs / 1000.0) * refillPerSecond;
+        double newTokens = Math.min(capacity, tokens + refillTokens);
+
+        TokenState state = new TokenState();
+        state.tokens = newTokens;
+        state.lastRefillMs = now;
+        saveTokenState(apiName, state);
+        return state;
+    }
+
+    private void saveTokenState(String apiName, TokenState state) {
+        String tokenKey = "api_bucket:" + apiName + ":tokens";
+        String refillKey = "api_bucket:" + apiName + ":last_refill_ms";
+
+        redisTemplate.opsForValue().set(tokenKey, Double.toString(state.tokens), Duration.ofHours(1));
+        redisTemplate.opsForValue().set(refillKey, Long.toString(state.lastRefillMs), Duration.ofHours(1));
+    }
+
+    private long parseLong(String value, long fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private double parseDouble(String value, double fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            return fallback;
         }
     }
     
@@ -178,6 +190,11 @@ public class ApiRateLimiterService {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    private static class TokenState {
+        private double tokens;
+        private long lastRefillMs;
     }
     
     /**

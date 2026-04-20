@@ -39,6 +39,15 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.indodb.games_backend.events"
+
+api:
+  rate-limit:
+    steam:
+      capacity: ${STEAM_BUCKET_CAPACITY:20}
+      refill-per-second: ${STEAM_BUCKET_REFILL_PER_SECOND:0.67}
+    other:
+      capacity: ${OTHER_BUCKET_CAPACITY:8}
+      refill-per-second: ${OTHER_BUCKET_REFILL_PER_SECOND:0.2}
   
   # Email Configuration (for price drop notifications)
   mail:

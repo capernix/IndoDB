@@ -108,6 +108,16 @@ public class PriceController {
         log.info("API: Price comparison for game {} - {} platforms", gameId, prices.size());
         return ResponseEntity.ok(prices);
     }
+
+    @GetMapping("/history/{gameId}")
+    public ResponseEntity<List<PriceService.PriceHistoryPoint>> getPriceHistory(
+            @PathVariable UUID gameId,
+            @RequestParam(defaultValue = "180") int days
+    ) {
+        List<PriceService.PriceHistoryPoint> history = priceService.getGamePriceHistory(gameId, days);
+        log.info("API: Price history for game {} - {} points (days={})", gameId, history.size(), days);
+        return ResponseEntity.ok(history);
+    }
     
     // 📊 STATS & ANALYTICS ENDPOINTS
     

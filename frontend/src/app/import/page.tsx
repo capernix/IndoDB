@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { syncFullGameData, type ItadSyncResponse, type SteamSyncResponse } from "@/lib/api";
+import { queueSteamGameSync, syncFullGameData, syncVisibleHomepageGames, type ItadSyncResponse, type SteamSyncResponse } from "@/lib/api";
 
 const examples = [
     { appId: "292030", title: "The Witcher 3" },
@@ -14,6 +14,8 @@ const examples = [
 type SyncState =
     | { status: "idle" }
     | { status: "loading"; message: string }
+    | { status: "queued"; appId: string }
+    | { status: "visible-sync"; message: string }
     | { status: "success"; steam: SteamSyncResponse; itad: ItadSyncResponse }
     | { status: "error"; message: string };
 
@@ -31,6 +33,41 @@ const formatINR = (price: number | null) => {
 export default function ImportPage() {
     const [steamAppId, setSteamAppId] = useState("292030");
     const [syncState, setSyncState] = useState<SyncState>({ status: "idle" });
+
+    const queueOnly = async () => {
+        const appId = steamAppId.trim();
+        if (!/^\d+$/.test(appId)) {
+            setSyncState({ status: "error", message: "Enter a numeric Steam app id." });
+            return;
+        }
+
+        try {
+            await queueSteamGameSync(appId, { source: "USER_IMPORT", priority: "HIGH", includeItad: true });
+            setSyncState({ status: "queued", appId });
+        } catch (error) {
+            setSyncState({
+                status: "error",
+                message: error instanceof Error ? error.message : "Queue request failed.",
+            });
+        }
+    };
+
+    const syncVisibleNow = async () => {
+        try {
+            setSyncState({ status: "loading", message: "Syncing visible homepage games (Steam + ITAD)..." });
+            const result = await syncVisibleHomepageGames({ limit: 8, includeItad: true, queueOnly: false });
+            const failedCount = result.failedAppIds.length;
+            const message = failedCount > 0
+                ? `Visible sync completed. Synced ${result.syncedAppIds.length}/${result.totalCandidates} games (${failedCount} failed).`
+                : `Visible sync completed. Synced ${result.syncedAppIds.length} games.`;
+            setSyncState({ status: "visible-sync", message });
+        } catch (error) {
+            setSyncState({
+                status: "error",
+                message: error instanceof Error ? error.message : "Visible sync failed.",
+            });
+        }
+    };
 
     const handleSync = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -54,7 +91,7 @@ export default function ImportPage() {
     };
 
     return (
-        <main className="min-h-screen bg-[#080A0C] px-6 pb-24 pt-32 text-white">
+        <main className="min-h-screen bg-[#080A0C] px-6 pb-24 text-white" style={{ paddingTop: "7.5rem" }}>
             <section className="mx-auto max-w-4xl">
                 <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#FF9933]">
                     Data Import
@@ -81,6 +118,20 @@ export default function ImportPage() {
                     >
                         {syncState.status === "loading" ? "Syncing" : "Sync Game"}
                     </button>
+                    <button
+                        type="button"
+                        onClick={queueOnly}
+                        className="h-14 rounded-lg border border-white/20 px-6 text-sm font-bold uppercase tracking-widest text-white transition-colors hover:border-[#FF9933]/70"
+                    >
+                        Queue Async Sync
+                    </button>
+                    <button
+                        type="button"
+                        onClick={syncVisibleNow}
+                        className="h-14 rounded-lg border border-emerald-400/40 px-6 text-sm font-bold uppercase tracking-widest text-emerald-200 transition-colors hover:border-emerald-300"
+                    >
+                        Sync Visible Home
+                    </button>
                 </form>
 
                 <div className="mt-5 flex flex-wrap gap-2">
@@ -104,6 +155,18 @@ export default function ImportPage() {
 
                 {syncState.status === "error" && (
                     <div className="mt-12 rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-red-200">
+                        {syncState.message}
+                    </div>
+                )}
+
+                {syncState.status === "queued" && (
+                    <div className="mt-12 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-6 text-emerald-200">
+                        Sync queued for app id {syncState.appId}. Background worker will ingest Steam and ITAD data shortly.
+                    </div>
+                )}
+
+                {syncState.status === "visible-sync" && (
+                    <div className="mt-12 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-6 text-emerald-200">
                         {syncState.message}
                     </div>
                 )}

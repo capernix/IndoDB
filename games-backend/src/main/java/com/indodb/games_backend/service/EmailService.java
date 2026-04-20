@@ -3,6 +3,7 @@ package com.indodb.games_backend.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
     
-    private final JavaMailSender mailSender;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
     
     @Value("${spring.mail.username:noreply@indiadb.games}")
     private String fromEmail;
@@ -26,6 +27,11 @@ public class EmailService {
      */
     public void sendPriceDropAlert(String toEmail, String gameTitle, String oldPrice, String newPrice, String discountPercentage) {
         try {
+            JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+            if (mailSender == null) {
+                log.info("Mail sender not configured, skipping price drop alert for {}", toEmail);
+                return;
+            }
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
@@ -57,6 +63,11 @@ public class EmailService {
      */
     public void sendTargetPriceAlert(String toEmail, String gameTitle, String currentPrice, String targetPrice) {
         try {
+            JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+            if (mailSender == null) {
+                log.info("Mail sender not configured, skipping target price alert for {}", toEmail);
+                return;
+            }
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
@@ -87,6 +98,11 @@ public class EmailService {
      */
     public void sendFreeGameAlert(String toEmail, String gameTitle) {
         try {
+            JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+            if (mailSender == null) {
+                log.info("Mail sender not configured, skipping free game alert for {}", toEmail);
+                return;
+            }
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);

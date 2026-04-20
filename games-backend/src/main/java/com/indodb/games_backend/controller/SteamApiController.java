@@ -1,7 +1,11 @@
 package com.indodb.games_backend.controller;
 
 import com.indodb.games_backend.service.ApiRateLimiterService;
+import com.indodb.games_backend.service.GameDiscoveryProducer;
+import com.indodb.games_backend.service.GameService;
 import com.indodb.games_backend.service.GameCacheService;
+import com.indodb.games_backend.service.ItadApiService;
+import com.indodb.games_backend.service.ItadCatalogSyncService;
 import com.indodb.games_backend.service.SteamCatalogSyncService;
 import com.indodb.games_backend.service.SteamApiService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,8 +19,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Controller for Steam API integration with comprehensive rate limiting and caching
@@ -31,6 +39,10 @@ public class SteamApiController {
     
     private final SteamApiService steamApiService;
     private final SteamCatalogSyncService steamCatalogSyncService;
+    private final GameDiscoveryProducer gameDiscoveryProducer;
+    private final GameService gameService;
+    private final ItadApiService itadApiService;
+    private final ItadCatalogSyncService itadCatalogSyncService;
     private final ApiRateLimiterService rateLimiterService;
     private final GameCacheService cacheService;
     
@@ -196,6 +208,120 @@ public class SteamApiController {
             ));
         }
     }
+
+    @PostMapping("/sync/queue/{appId}")
+    @Operation(summary = "Queue async sync for a Steam app", description = "Pushes a game-discovery event for background Steam/ITAD ingestion")
+    public ResponseEntity<Map<String, Object>> queueSteamGameSync(
+            @PathVariable String appId,
+            @RequestParam(defaultValue = "USER_IMPORT") String source,
+            @RequestParam(defaultValue = "HIGH") String priority,
+            @RequestParam(defaultValue = "true") boolean includeItad
+    ) {
+        gameDiscoveryProducer.publish(appId, source, priority, includeItad);
+        return ResponseEntity.accepted().body(Map.of(
+                "status", "QUEUED",
+                "appId", appId,
+                "source", source,
+                "priority", priority,
+                "includeItad", includeItad
+        ));
+    }
+
+    @PostMapping("/sync/queue/batch")
+    @Operation(summary = "Queue async sync for multiple Steam apps", description = "Bulk enqueue game-discovery events for baseline seeding")
+    public ResponseEntity<Map<String, Object>> queueBatchSteamGameSync(
+            @RequestBody List<String> appIds,
+            @RequestParam(defaultValue = "BASELINE_SEED") String source,
+            @RequestParam(defaultValue = "MEDIUM") String priority,
+            @RequestParam(defaultValue = "true") boolean includeItad
+    ) {
+        List<String> accepted = new ArrayList<>();
+        for (String appId : appIds) {
+            if (appId != null && appId.matches("\\d+")) {
+                gameDiscoveryProducer.publish(appId, source, priority, includeItad);
+                accepted.add(appId);
+            }
+        }
+
+        return ResponseEntity.accepted().body(Map.of(
+                "status", "QUEUED",
+                "acceptedCount", accepted.size(),
+                "acceptedAppIds", accepted,
+                "source", source,
+                "priority", priority,
+                "includeItad", includeItad
+        ));
+    }
+
+    @PostMapping("/sync-visible")
+    @Operation(
+            summary = "Sync visible homepage Steam games",
+            description = "Collects app IDs from trending/deals/hottest lists and syncs them in one call"
+    )
+    public ResponseEntity<Map<String, Object>> syncVisibleHomepageGames(
+            @RequestParam(defaultValue = "8") int limit,
+            @RequestParam(defaultValue = "true") boolean includeItad,
+            @RequestParam(defaultValue = "false") boolean queueOnly
+    ) {
+        int safeLimit = Math.max(1, Math.min(limit, 20));
+
+        Set<String> appIds = new LinkedHashSet<>();
+        gameService.getTrendingGames("trending", safeLimit).forEach(game -> {
+            if (game.getSteamAppId() != null) {
+                appIds.add(game.getSteamAppId().toString());
+            }
+        });
+        gameService.getTrendingGames("deals", safeLimit).forEach(game -> {
+            if (game.getSteamAppId() != null) {
+                appIds.add(game.getSteamAppId().toString());
+            }
+        });
+        gameService.getTrendingGames("hottest", safeLimit).forEach(game -> {
+            if (game.getSteamAppId() != null) {
+                appIds.add(game.getSteamAppId().toString());
+            }
+        });
+
+        List<String> synced = new ArrayList<>();
+        List<String> queued = new ArrayList<>();
+        List<String> failed = new ArrayList<>();
+
+        for (String appId : appIds) {
+            try {
+                if (queueOnly) {
+                    gameDiscoveryProducer.publish(appId, "VISIBLE_BATCH", "HIGH", includeItad);
+                    queued.add(appId);
+                    continue;
+                }
+
+                steamCatalogSyncService.syncSteamGame(appId);
+                synced.add(appId);
+
+                if (includeItad && itadApiService.isConfigured()) {
+                    try {
+                        itadCatalogSyncService.syncStorePricesForSteamApp(appId);
+                    } catch (Exception ignored) {
+                        // Ignore per-app ITAD failures; steam sync already succeeded.
+                    }
+                }
+            } catch (Exception e) {
+                failed.add(appId);
+                log.warn("Failed syncing visible appId={}: {}", appId, e.getMessage());
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "mode", queueOnly ? "QUEUED" : "SYNCED",
+                "limit", safeLimit,
+                "includeItad", includeItad,
+                "totalCandidates", appIds.size(),
+                "candidateAppIds", appIds,
+                "syncedAppIds", synced,
+                "queuedAppIds", queued,
+                "failedAppIds", failed
+        ));
+    }
     
     /**
      * Get rate limiting status for Steam API
@@ -212,6 +338,7 @@ public class SteamApiController {
         detailedStats.put("callsThisDay", stats.callsThisDay);
         
         response.put("detailedStats", detailedStats);
+        response.put("tokenBucket", rateLimiterService.getTokenBucketStatus("steam"));
         response.put("timestamp", System.currentTimeMillis());
         
         return ResponseEntity.ok(response);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ExternalLink, Heart } from "lucide-react";
-import { PriceChart } from "@/components/ui/PriceChart";
+import { PriceChart, type PriceHistoryPoint } from "@/components/ui/PriceChart";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
@@ -162,9 +162,15 @@ async function fetchPrices(id: string): Promise<GamePrice[]> {
     return (await res.json()) as GamePrice[];
 }
 
+async function fetchPriceHistory(id: string): Promise<PriceHistoryPoint[]> {
+    const res = await fetch(`${BASE_URL}/api/prices/history/${id}?days=180`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()) as PriceHistoryPoint[];
+}
+
 export default async function GameDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const [game, prices] = await Promise.all([fetchGame(id), fetchPrices(id)]);
+    const [game, prices, history] = await Promise.all([fetchGame(id), fetchPrices(id), fetchPriceHistory(id)]);
 
     if (!game) {
         return (
@@ -271,9 +277,9 @@ export default async function GameDetailPage({ params }: { params: Promise<{ id:
                         Price History
                     </h2>
                     <p className="mb-10 text-[14px]" style={{ color: "#737373" }}>
-                        Historical chart placeholder (wire to backend history endpoint next).
+                        Last 180 days of tracked prices across stores.
                     </p>
-                    <PriceChart />
+                    <PriceChart data={history} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
