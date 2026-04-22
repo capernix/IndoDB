@@ -22,6 +22,8 @@ public interface TopSteamSnapshotItemRepository extends JpaRepository<TopSteamSn
 
     long countBySnapshotDate(LocalDate snapshotDate);
 
+    void deleteBySnapshotDate(LocalDate snapshotDate);
+
     @Query("SELECT i FROM TopSteamSnapshotItem i WHERE i.snapshotDate = :snapshotDate ORDER BY i.rank ASC")
     List<TopSteamSnapshotItem> findAllBySnapshotDateOrdered(@Param("snapshotDate") LocalDate snapshotDate);
 }
